@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safaricom Minutes</title>
+    <style>
+        :root {
+            --saf-green: #28a745;
+            --saf-dark-green: #218838;
+        }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #ffffff; 
+            margin: 0; 
+            padding: 20px; 
+            display: flex; 
+            justify-content: center; 
+        }
+        .container { max-width: 600px; width: 100%; text-align: center; }
+        
+        h1 { color: var(--saf-green); margin-bottom: 30px; }
+
+        /* Phone Input Styling */
+        .input-group { margin-bottom: 30px; }
+        input { 
+            width: 80%; 
+            padding: 15px; 
+            border: 2px solid #eee; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        input:focus { border-color: var(--saf-green); }
+
+        /* --- THE GRID LOGIC --- */
+        .offers-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* Two columns */
+            gap: 20px; /* Space between cards */
+            margin-top: 20px;
+        }
+
+        /* Mobile Responsive Grid */
+        @media (max-width: 480px) {
+            .offers-grid { grid-template-columns: 1fr; }
+        }
+
+        .offer-card { 
+            background: #fff;
+            border: 1px solid #eee; 
+            padding: 20px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .offer-card:hover { transform: translateY(-5px); }
+        
+        .offer-card h3 { margin: 0; font-size: 1.4rem; color: #333; }
+        .offer-card p { color: #666; font-size: 0.9rem; }
+        
+        .btn-green { 
+            background-color: var(--saf-green); 
+            color: white; 
+            border: none; 
+            padding: 12px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 1rem;
+            margin-top: 15px;
+        }
+        .btn-green:hover { background-color: var(--saf-dark-green); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Safaricom Minutes</h1>
+        
+        <div class="input-group">
+            <input type="number" id="phone" placeholder="Enter M-Pesa Number (254...)" required>
+        </div>
+
+        <div class="offers-grid">
+            {% for offer in offers %}
+            <div class="offer-card">
+                <div>
+                    <h3>{{ offer.mins }}</h3>
+                    <p>Minutes</p>
+                    <small>Valid: {{ offer.duration }}</small>
+                </div>
+                <button class="btn-green" onclick="buyOffer('{{ offer.id }}')">
+                    KES {{ offer.price }}
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        function buyOffer(id) {
+            const phone = document.getElementById('phone').value;
+            if(!phone || phone.length < 10) { 
+                alert("Please enter a valid Safaricom number"); 
+                return; 
+            }
+            
+            fetch('/initiate_payment', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({phone: phone, offer_id: id})
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+            })
+            .catch(err => alert("Error connecting to server"));
+        }
+    </script>
+</body>
+</html>
