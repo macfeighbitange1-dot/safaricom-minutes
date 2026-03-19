@@ -122,4 +122,7 @@ def initiate_payment():
         return jsonify({"status": "error", "message": "Connection to Safaricom failed."}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # This tells the app to use the Port Render gives it (PORT) 
+    # or default to 5000 if you are testing locally in CMD.
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
