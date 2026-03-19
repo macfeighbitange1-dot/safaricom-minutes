@@ -25,19 +25,29 @@ OFFERS = [
 ]
 
 def get_access_token():
-    """Gets the M-Pesa API Access Token with updated headers to bypass 404/Firewall"""
+    """Gets the M-Pesa API Access Token with detailed error reporting"""
     api_url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
     
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        "User-Agent": "Mozilla/5.0"
     }
     
     try:
-        r = requests.get(api_url, auth=(CONSUMER_KEY, CONSUMER_SECRET), headers=headers)
+        # Use .strip() to ensure no accidental spaces are causing the 401 Unauthorized
+        r = requests.get(
+            api_url, 
+            auth=(CONSUMER_KEY.strip(), CONSUMER_SECRET.strip()), 
+            headers=headers
+        )
+        
+        if r.status_code == 401:
+            print("CRITICAL: Invalid Consumer Key or Secret. Check Daraja Portal.")
+            return None
+            
         r.raise_for_status()
         return r.json().get('access_token')
     except Exception as e:
-        print(f"Token Error: {e}")
+        print(f"Connection Error: {e}")
         return None
 
 def generate_password(timestamp):
