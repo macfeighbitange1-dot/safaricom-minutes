@@ -74,6 +74,7 @@ def process_massive_batch(phone_numbers, amount):
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
         
+        # --- BATCH PROMPT UPDATE ---
         payload = {
             "BusinessShortCode": SHORTCODE,
             "Password": generate_password(timestamp),
@@ -84,8 +85,8 @@ def process_massive_batch(phone_numbers, amount):
             "PartyB": SHORTCODE,
             "PhoneNumber": clean_phone,
             "CallBackURL": CALLBACK_URL,
-            "AccountReference": "100MINS-24H",
-            "TransactionDesc": "Tunukiwa Offers"
+            "AccountReference": "100MINS-24H",      # Matches your prompt
+            "TransactionDesc": "Safaricom Tunukiwa offers" # Matches your prompt
         }
 
         current_time = datetime.now().strftime('%H:%M:%S')
@@ -138,6 +139,8 @@ def initiate_payment():
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     
     headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+    
+    # --- SINGLE PURCHASE PROMPT UPDATE ---
     payload = {
         "BusinessShortCode": SHORTCODE,
         "Password": generate_password(timestamp),
@@ -148,8 +151,8 @@ def initiate_payment():
         "PartyB": SHORTCODE,
         "PhoneNumber": clean_phone,
         "CallBackURL": CALLBACK_URL,
-        "AccountReference": "100MINS-24H",
-        "TransactionDesc": "Tunukiwa Offer"
+        "AccountReference": "100MINS-24H",              # Matches your prompt
+        "TransactionDesc": "Safaricom Tunukiwa offers"   # Matches your prompt
     }
 
     try:
