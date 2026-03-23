@@ -3,86 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Safaricom Minutes</title>
+    <title>Safaricom Minutes - Instant Purchase</title>
     <style>
         :root {
             --saf-green: #28a745;
             --saf-dark-green: #218838;
+            --light-bg: #f8f9fa;
         }
         body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background-color: #ffffff; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            background-color: var(--light-bg); 
             margin: 0; 
             padding: 20px; 
             display: flex; 
             justify-content: center; 
         }
-        .container { max-width: 600px; width: 100%; text-align: center; }
+        .container { max-width: 650px; width: 100%; text-align: center; }
         
-        h1 { color: var(--saf-green); margin-bottom: 30px; }
+        .header { margin-bottom: 40px; }
+        h1 { color: var(--saf-green); margin-bottom: 5px; font-size: 2.5rem; }
+        .subtitle { color: #666; font-size: 1.1rem; }
 
         /* Phone Input Styling */
-        .input-group { margin-bottom: 30px; }
-        input { 
-            width: 80%; 
-            padding: 15px; 
-            border: 2px solid #eee; 
-            border-radius: 8px; 
-            font-size: 16px; 
-            outline: none;
-            transition: border-color 0.3s;
+        .input-group { 
+            margin-bottom: 40px; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
         }
-        input:focus { border-color: var(--saf-green); }
+        .input-label { display: block; margin-bottom: 10px; font-weight: bold; color: #444; }
+        input { 
+            width: 90%; 
+            padding: 18px; 
+            border: 2px solid #e1e1e1; 
+            border-radius: 12px; 
+            font-size: 18px; 
+            outline: none;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        input:focus { border-color: var(--saf-green); box-shadow: 0 0 10px rgba(40, 167, 69, 0.1); }
 
-        /* --- THE GRID LOGIC --- */
+        /* Offers Grid */
         .offers-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr); /* Two columns */
-            gap: 20px; /* Space between cards */
-            margin-top: 20px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
         }
 
-        /* Mobile Responsive Grid */
-        @media (max-width: 480px) {
+        @media (max-width: 500px) {
             .offers-grid { grid-template-columns: 1fr; }
         }
 
         .offer-card { 
             background: #fff;
             border: 1px solid #eee; 
-            padding: 20px; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            transition: transform 0.2s;
+            padding: 25px; 
+            border-radius: 20px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            transition: all 0.3s ease;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            position: relative;
+            overflow: hidden;
         }
-        .offer-card:hover { transform: translateY(-5px); }
+        .offer-card:hover { transform: translateY(-8px); box-shadow: 0 12px 20px rgba(0,0,0,0.08); }
         
-        .offer-card h3 { margin: 0; font-size: 1.4rem; color: #333; }
-        .offer-card p { color: #666; font-size: 0.9rem; }
+        .offer-card h3 { margin: 0; font-size: 2rem; color: #222; }
+        .offer-card p { color: #666; margin: 5px 0; font-weight: 500; }
+        .offer-card small { display: block; color: var(--saf-green); font-weight: bold; margin-bottom: 10px; }
         
         .btn-green { 
             background-color: var(--saf-green); 
             color: white; 
             border: none; 
-            padding: 12px; 
-            border-radius: 6px; 
+            padding: 15px; 
+            border-radius: 10px; 
             cursor: pointer; 
             font-weight: bold; 
-            font-size: 1rem;
-            margin-top: 15px;
+            font-size: 1.1rem;
+            transition: background 0.2s;
         }
         .btn-green:hover { background-color: var(--saf-dark-green); }
+        .btn-green:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        /* Batch Link */
+        .admin-link { margin-top: 40px; display: block; color: #888; text-decoration: none; font-size: 0.9rem; }
+        .admin-link:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Safaricom Minutes</h1>
+        <div class="header">
+            <h1>Safaricom Minutes</h1>
+            <p class="subtitle">Enter your number and select a bundle</p>
+        </div>
         
         <div class="input-group">
-            <input type="number" id="phone" placeholder="Enter M-Pesa Number (254...)" required>
+            <label class="input-label">M-Pesa Phone Number</label>
+            <input type="number" id="phone" placeholder="07XXXXXXXX or 254..." required>
         </div>
 
         <div class="offers-grid">
@@ -90,24 +111,33 @@
             <div class="offer-card">
                 <div>
                     <h3>{{ offer.mins }}</h3>
-                    <p>Minutes</p>
-                    <small>Valid: {{ offer.duration }}</small>
+                    <p>Minutes Bundle</p>
+                    <small>Expires in {{ offer.duration }}</small>
                 </div>
-                <button class="btn-green" onclick="buyOffer('{{ offer.id }}')">
-                    KES {{ offer.price }}
+                <button class="btn-green" id="btn-{{ offer.id }}" onclick="buyOffer('{{ offer.id }}')">
+                    Buy for KES {{ offer.price }}
                 </button>
             </div>
             {% endfor %}
         </div>
+
+        <a href="/batch" class="admin-link">Access Batch Processing Dashboard</a>
     </div>
 
     <script>
         function buyOffer(id) {
             const phone = document.getElementById('phone').value;
+            const btn = document.getElementById('btn-' + id);
+            
             if(!phone || phone.length < 10) { 
-                alert("Please enter a valid Safaricom number"); 
+                alert("Please enter a valid Safaricom number (e.g., 0712345678)"); 
                 return; 
             }
+
+            // UI Loading State
+            const originalText = btn.innerText;
+            btn.innerText = "Requesting STK...";
+            btn.disabled = true;
             
             fetch('/initiate_payment', {
                 method: 'POST',
@@ -117,8 +147,14 @@
             .then(res => res.json())
             .then(data => {
                 alert(data.message);
+                btn.innerText = originalText;
+                btn.disabled = false;
             })
-            .catch(err => alert("Error connecting to server"));
+            .catch(err => {
+                alert("Connection error. Check your internet.");
+                btn.innerText = originalText;
+                btn.disabled = false;
+            });
         }
     </script>
 </body>
