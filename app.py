@@ -32,7 +32,6 @@ batch_status = {"total": 0, "current": 0, "is_running": False, "status": "Idle",
 # --- HELPER FUNCTIONS ---
 
 def get_access_token():
-    # UPDATED TO LIVE URL
     api_url = "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
@@ -45,7 +44,7 @@ def get_access_token():
 def generate_password(timestamp):
     return base64.b64encode((SHORTCODE + PASSKEY + timestamp).encode()).decode('utf-8')
 
-# --- BACKGROUND BATCH WORKER (UPDATED LOGIC) ---
+# --- BACKGROUND BATCH WORKER ---
 
 def process_massive_batch(phone_numbers, amount):
     global batch_status
@@ -56,19 +55,16 @@ def process_massive_batch(phone_numbers, amount):
     batch_status["logs"] = [] 
 
     access_token = get_access_token()
-    # UPDATED TO LIVE URL
     stk_url = "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
     
     for index, phone in enumerate(phone_numbers):
-        # 1. Standardize Phone
         clean_phone = phone.strip()
         if clean_phone.startswith("0"): clean_phone = "254" + clean_phone[1:]
         
-        # 2. Break every 100 numbers (The "Rest" period)
         if index > 0 and index % 100 == 0:
             batch_status["status"] = "Batch of 100 complete. Resting 2 mins..."
-            time.sleep(120) # 2 minute break
-            access_token = get_access_token() # Refresh token after break
+            time.sleep(120)
+            access_token = get_access_token()
             batch_status["status"] = "Processing next batch..."
 
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
@@ -78,7 +74,7 @@ def process_massive_batch(phone_numbers, amount):
             "BusinessShortCode": SHORTCODE,
             "Password": generate_password(timestamp),
             "Timestamp": timestamp,
-            "TransactionType": "CustomerBuyGoodsOnline", # UPDATED FOR TILL
+            "TransactionType": "CustomerBuyGoodsOnline",
             "Amount": 10, 
             "PartyA": clean_phone,
             "PartyB": SHORTCODE,
@@ -93,18 +89,12 @@ def process_massive_batch(phone_numbers, amount):
             response = requests.post(stk_url, json=payload, headers=headers, timeout=10)
             if response.status_code == 200:
                 batch_status["logs"].append({"phone": clean_phone, "status": "Sent", "time": current_time})
-            elif response.status_code == 429:
-                batch_status["status"] = "Throttled - Sleeping 10s"
-                time.sleep(10)
-                batch_status["status"] = "Processing"
             else:
-                batch_status["logs"].append({"phone": clean_phone, "status": "Error", "time": current_time})
+                batch_status["logs"].append({"phone": clean_phone, "status": f"Error {response.status_code}", "time": current_time})
         except:
             batch_status["logs"].append({"phone": clean_phone, "status": "Failed", "time": current_time})
         
         batch_status["current"] += 1
-        
-        # 3. RANDOM LAG (2.0 to 5.0 seconds)
         time.sleep(random.uniform(2.0, 5.0)) 
 
     batch_status["is_running"] = False
@@ -145,7 +135,7 @@ def initiate_payment():
         "BusinessShortCode": SHORTCODE,
         "Password": generate_password(timestamp),
         "Timestamp": timestamp,
-        "TransactionType": "CustomerBuyGoodsOnline", # UPDATED FOR TILL
+        "TransactionType": "CustomerBuyGoodsOnline",
         "Amount": amount,
         "PartyA": clean_phone,
         "PartyB": SHORTCODE,
@@ -157,9 +147,21 @@ def initiate_payment():
 
     try:
         response = requests.post(stk_url, json=payload, headers=headers)
+        res_data = response.json() 
+        
         if response.status_code == 200:
             return jsonify({"status": "success", "message": "STK Prompt sent!"})
-        return jsonify({"status": "error", "message": "Safaricom error"}), 400
+        
+        # LOGGING ERROR TO RENDER CONSOLE
+        print(f"--- SAFARICOM LIVE ERROR ---")
+        print(f"Status Code: {response.status_code}")
+        print(f"Response Body: {res_data}")
+        print(f"-----------------------------")
+        
+        return jsonify({
+            "status": "error", 
+            "message": res_data.get('errorMessage', 'Safaricom rejected the request')
+        }), 400
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
